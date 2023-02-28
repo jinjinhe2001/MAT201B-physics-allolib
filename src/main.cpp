@@ -6,15 +6,21 @@
 // for devel branch
 #include "al/app/al_App.hpp"
 #include "al/graphics/al_Shapes.hpp"
+#include "al/graphics/al_Image.hpp"
+#include "helper.hpp"
 
 using namespace al;
+using namespace helper;
 
 struct MyApp : App {
-  Mesh mesh;
+  Object bunny;
+  Image texture;
   double phase = 0;
 
   void onCreate() override {
-    addTetrahedron(mesh);
+    helper::loadObjFile(bunny.fMesh, "./assets/bunny/bunny.obj");
+    bunny.loadTexture("./assets/bunny/bunny-atlas.jpg");
+
     lens().near(0.1).far(25).fovy(45);
     nav().pos(0, 0, 4);
     nav().quat().fromAxisAngle(0. * M_2PI, 0, 1, 0);
@@ -27,12 +33,14 @@ struct MyApp : App {
   }
 
   void onDraw(Graphics& g) override {
+    g.depthTesting(true);
     g.clear(0, 0, 0);
-    g.polygonLine();
     g.pushMatrix();
-    g.rotate(phase * 360, 0, 1, 0);
     g.color(1);
-    g.draw(mesh);
+    g.scale(0.005);
+    bunny.texture.bind();
+    g.texture();
+    g.draw(bunny.fMesh());
     g.popMatrix();
   }
 };
