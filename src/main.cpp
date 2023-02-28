@@ -20,7 +20,6 @@ struct MyApp : App {
   void onCreate() override {
     helper::loadObjFile(bunny.fMesh, "./assets/bunny/bunny.obj");
     bunny.loadTexture("./assets/bunny/bunny-atlas.jpg");
-
     lens().near(0.1).far(25).fovy(45);
     nav().pos(0, 0, 4);
     nav().quat().fromAxisAngle(0. * M_2PI, 0, 1, 0);
