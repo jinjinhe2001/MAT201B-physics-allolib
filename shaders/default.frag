@@ -23,6 +23,7 @@ in vec2 fragTex;
 uniform vec3 viewPos;
 uniform Material material;
 uniform Light light;
+uniform sampler2D texture1;
 
 void main()
 {
@@ -38,6 +39,6 @@ void main()
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
     vec3 specular = light.specular * (spec * material.specular);
 
-    vec3 result = ambient + diffuse + specular;
-    fragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    vec3 result = (ambient + diffuse + specular);
+    fragColor = vec4(result, 1.0) * texture(texture1, fragTex);
 }

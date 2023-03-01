@@ -17,7 +17,7 @@ class Object
 {
 public:
     Nav nav;
-    VAOMesh mesh;
+    Mesh mesh;
     Texture texture;
     Material material;
     ShaderProgram shader;
@@ -32,7 +32,6 @@ public:
             std::vector<Vec3f> normals;
             loadOBJ(meshPath.c_str(), vertices, uvs, normals);
             indexVBO(vertices, uvs, normals, mesh.indices(), mesh.vertices(), mesh.texCoord2s(), mesh.normals());
-            //for (auto i : mesh.vertices()) std::cout << i<<"\n";
         }
 
         if (!strcmp(shaderPath.c_str(), "")) {
@@ -60,9 +59,9 @@ public:
             loadTexture(texture, texPath);
         }
         // default material
-        material.ambient(Color(1.0f, 0.5f, 0.31f, 1.0f));
-        material.diffuse(Color(1.0f, 0.5f, 0.31f, 1.0f));
-        material.specular(Color(1.0f, 0.5f, 0.31f, 1.0f));
+        material.ambient(Color(1.0f, 1.0f, 1.0f, 1.0f));
+        material.diffuse(Color(1.0f, 1.0f, 1.0f, 1.0f));
+        material.specular(Color(1.0f, 1.0f, 1.0f, 1.0f));
         material.shininess(32.0f);
     }
 
@@ -78,30 +77,39 @@ class V1Object : public Object
 {
 public:
     Light singleLight;
+
     BufferObject bufferArray[3];
     BufferObject elementBuffer;
+    VAO vao;
     V1Object(const std::string meshPath = "", const std::string shaderPath = "./shaders/default", 
         const std::string texPath = "") 
         : Object(meshPath, shaderPath, texPath) {}
 
     void onCreate() override {
+        Color lightColor(1.0f, 1.0f, 1.0f, 1.0f);
+        singleLight.ambient(lightColor * 0.3f);
+        singleLight.diffuse(lightColor * 0.5f);
+        singleLight.specular(Color(1.0f, 1.0f, 1.0f, 1.0f));
+
+        
         std::vector<int>bufferSize({3, 2, 3});
-        auto& vao = mesh.vao();
-        vao.bind();
+        vao.create();
         for (int i = 0; i < bufferSize.size(); i++) {
             bufferArray[i].bufferType(GL_ARRAY_BUFFER);
             bufferArray[i].usage(GL_STATIC_DRAW);
             bufferArray[i].create();
+            bufferArray[i].bind();
+            if (i == 0)
+                bufferArray[i].data(mesh.vertices().size() * sizeof(float) * bufferSize[i], mesh.vertices().data());
+            else if (i == 1) {
+                bufferArray[i].data(mesh.texCoord2s().size() * sizeof(float) * bufferSize[i], mesh.texCoord2s().data());
+            } else {
+                bufferArray[i].data(mesh.normals().size() * sizeof(float) * bufferSize[i], mesh.normals().data());
+            }
+            vao.bind();
             vao.enableAttrib(i);
-            vao.attribPointer(i, bufferArray[i], bufferSize[i], GL_FLOAT, GL_FALSE, 0, 0);
-            glVertexAttribDivisor(i, 1); 
+            vao.attribPointer(i, bufferArray[i], bufferSize[i], GL_FLOAT, 0, 0);
         }
-        bufferArray[0].bind();
-        bufferArray[0].data(mesh.vertices().size() * sizeof(float) * 3, mesh.vertices().data());
-        bufferArray[1].bind();
-        bufferArray[1].data(mesh.texCoord2s().size() * sizeof(float) * 2, mesh.texCoord2s().data());
-        bufferArray[2].bind();
-        bufferArray[2].data(mesh.normals().size() * sizeof(float) * 3, mesh.normals().data());
         elementBuffer.bufferType(GL_ELEMENT_ARRAY_BUFFER);
         elementBuffer.usage(GL_STATIC_DRAW);
         elementBuffer.create();
@@ -114,34 +122,40 @@ public:
     }
 
     void onDraw(Graphics& g, Nav& camera) override {
-        g.shader(shader);
-        
-        g.shader().uniform("model", g.modelMatrix());
+        g.clear(singleLight.globalAmbient());
+        shader.use();
 
-        g.shader().uniform("viewPos", camera.pos());
-        g.shader().uniform("material.ambient", Vec3f(material.ambient().r, 
+        shader.uniform("model", g.modelMatrix());
+        shader.uniform("view", g.viewMatrix());
+        shader.uniform("projection", g.projMatrix());
+
+        shader.uniform("viewPos", camera.pos());
+        shader.uniform("material.ambient", Vec3f(material.ambient().r, 
         material.ambient().g, material.ambient().b));
-        g.shader().uniform("material.diffuse", Vec3f(material.diffuse().r, 
+        shader.uniform("material.diffuse", Vec3f(material.diffuse().r, 
         material.diffuse().g, material.diffuse().b));
-        g.shader().uniform("material.specular", Vec3f(material.specular().r, 
+        shader.uniform("material.specular", Vec3f(material.specular().r, 
         material.specular().g, material.specular().b));
-        g.shader().uniform("material.shininess", material.shininess());
+        shader.uniform("material.shininess", material.shininess());
 
-        g.shader().uniform("light.position", Vec3f(singleLight.pos()));
-        g.shader().uniform("light.ambient", Vec3f(singleLight.ambient().r, 
+        shader.uniform("light.position", Vec3f(singleLight.pos()));
+        shader.uniform("light.ambient", Vec3f(singleLight.ambient().r, 
         singleLight.ambient().g, singleLight.ambient().b));
-        g.shader().uniform("light.diffuse", Vec3f(singleLight.diffuse().r, 
+        shader.uniform("light.diffuse", Vec3f(singleLight.diffuse().r, 
         singleLight.diffuse().g, singleLight.diffuse().b));
-        g.shader().uniform("light.specular", Vec3f(singleLight.specular().r, 
+        shader.uniform("light.specular", Vec3f(singleLight.specular().r, 
         singleLight.specular().g, singleLight.specular().b));
 
-        mesh.vao().bind();
+        glUniform1i(glGetUniformLocation(shader.id(), "texture1"), 0);
+        texture.bind(0);
+
+        vao.bind();
 
         elementBuffer.bind();
         glDrawElements(
 			GL_TRIANGLES,
 			mesh.indices().size(),
-			GL_UNSIGNED_SHORT,
+			GL_UNSIGNED_INT,
 			(void*)0
 		);
     }

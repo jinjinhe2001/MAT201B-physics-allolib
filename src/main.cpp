@@ -13,15 +13,16 @@
 using namespace al;
 
 struct MyApp : App {
-  std::shared_ptr<V1Object> bunny;
+  std::unique_ptr<V1Object> bunny;
   Image texture;
   Mesh mesh;
   double phase = 0;
 
   void onCreate() override {
-    bunny = std::make_shared<V1Object>("./assets/bunny/bunny.obj", "./shaders/default", "./assets/bunny/bunny-atlas.jpg");
+    bunny = std::make_unique<V1Object>("./assets/bunny/bunny.obj", "./shaders/default", "./assets/bunny/bunny-atlas.jpg");
+    bunny->mesh.generateNormals();
     bunny->onCreate();
-    bunny->singleLight.pos(5, 5, 5);
+    bunny->singleLight.pos(15, 15, 15);
 
     nav().pos(0, 0, 4);
     nav().quat().fromAxisAngle(0. * M_2PI, 0, 1, 0);
@@ -35,16 +36,15 @@ struct MyApp : App {
   }
 
   void onDraw(Graphics& g) override {
-    g.clear(0, 0, 0);
     g.depthTesting(true);
     g.pushMatrix();
     g.color(1);
     g.scale(0.005);
-    bunny->texture.bind();
+    g.pushCamera(view());
+    /*bunny->texture.bind();
     g.texture();
-    auto mesh = bunny->mesh;
-    // strange thing: use g.draw(bunny->mesh); it draws nothing.
-    g.draw(mesh);
+    g.draw(bunny->mesh);*/
+    bunny->onDraw(g, nav());
     g.popMatrix();
   }
 };
