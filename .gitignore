@@ -8,8 +8,6 @@ build
 *.PNG
 *.gif
 *.GIF
-*.jpg
-*.JPG
 *.jpeg
 *.JPEG
 *.tiff
