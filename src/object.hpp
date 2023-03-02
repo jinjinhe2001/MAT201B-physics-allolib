@@ -17,6 +17,7 @@ class Object
 {
 public:
     Nav nav;
+    Vec3f scale;
     Mesh mesh;
     Texture texture;
     Material material;
@@ -53,7 +54,7 @@ public:
             vert.close();
             frag.close();
         }
-        if (!strcmp(shaderPath.c_str(), "")) {
+        if (!strcmp(texPath.c_str(), "")) {
             // pass
         } else {
             loadTexture(texture, texPath);
@@ -87,8 +88,8 @@ public:
 
     void onCreate() override {
         Color lightColor(1.0f, 1.0f, 1.0f, 1.0f);
-        singleLight.ambient(lightColor * 0.3f);
-        singleLight.diffuse(lightColor * 0.5f);
+        singleLight.ambient(lightColor * 0.5f);
+        singleLight.diffuse(lightColor * 0.7f);
         singleLight.specular(Color(1.0f, 1.0f, 1.0f, 1.0f));
 
         
@@ -122,8 +123,13 @@ public:
     }
 
     void onDraw(Graphics& g, Nav& camera) override {
-        g.clear(singleLight.globalAmbient());
+
         shader.use();
+
+        g.translate(nav.pos());
+        g.rotate(nav.quat());
+        g.scale(scale);
+        
 
         shader.uniform("model", g.modelMatrix());
         shader.uniform("view", g.viewMatrix());
@@ -158,5 +164,15 @@ public:
 			GL_UNSIGNED_INT,
 			(void*)0
 		);
+    }
+
+    void generateNormals() {
+        mesh.generateNormals();
+        bufferArray[2].bind();
+        bufferArray[2].data(mesh.normals().size() * sizeof(float) * 3, mesh.normals().data());
+
+        vao.bind();
+        vao.enableAttrib(2);
+        vao.attribPointer(2, bufferArray[2], 3, GL_FLOAT, 0, 0);
     }
 };
