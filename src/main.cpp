@@ -53,7 +53,19 @@ struct MyApp : App {
   bool onKeyDown(Keyboard const& k) override {
     switch (k.key()) {
       case ' ': {
-        bunny->addForce();
+        bunny->addVelocity();
+      } break;
+      case '1': {
+        bunny->addVelocity(Vec3f(5.0f, 0, 0));
+      } break;
+      case '2': {
+        bunny->addVelocity(Vec3f(-5.0f, 0, 0));
+      } break;
+      case '3': {
+        bunny->addVelocity(Vec3f(0, 0, 5.0f));
+      } break;
+      case '4': {
+        bunny->addVelocity(Vec3f(0, 0, -5.0f));
       } break;
     }
   }

@@ -213,9 +213,9 @@ public:
         }
     }
 
-    void addForce() {
+    void addVelocity(Vec3f _v = Vec3f(0, 7.0f, 0)) {
         restitution = 0.5;
-        v += Vec3f(0, 7.0f, 0);
+        v += _v;
     }
     
     void collisonImpulse_plane(Vec3f P, Vec3f N) {
