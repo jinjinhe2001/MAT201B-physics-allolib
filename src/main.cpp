@@ -13,24 +13,21 @@
 using namespace al;
 
 struct MyApp : App {
-  std::unique_ptr<V1Object> bunny;
+  std::unique_ptr<RigidObject> bunny;
   std::unique_ptr<V1Object> plane;
-  Image texture;
-  Mesh mesh;
-  double phase = 0;
 
   void createBunny() {
-    bunny = std::make_unique<V1Object>("./assets/bunny/bunny.obj", 
+    bunny = std::make_unique<RigidObject>("./assets/bunny/bunny.obj", 
                                        "./shaders/default", 
                                        "./assets/bunny/bunny-atlas.jpg");
     bunny->onCreate();
     bunny->generateNormals();
-    
     bunny->scale = Vec3f(0.005);
-    bunny->nav.pos(1, 1, 1);
+    bunny->nav.pos(1, 4, 1);
     bunny->nav.quat().fromAxisAngle(-0.5 * M_2PI, 1, 0, 0);
     bunny->material.shininess(8.0f);
     bunny->singleLight.pos(5, 10, -5);
+    bunny->initIRef();
   }
 
   void createPlane() {
@@ -39,7 +36,7 @@ struct MyApp : App {
                                        "./assets/plane/uvmap.jpeg");
     plane->onCreate();
     plane->scale = Vec3f(1);
-    plane->nav.pos(0, -3, 0);
+    plane->nav.pos(0, -1.5, 0);
     plane->nav.quat().fromAxisAngle(-0.25 * M_2PI, 1, 0, 0);
     plane->material.shininess(2);
     bunny->singleLight.pos(5, 10, -5);
@@ -53,10 +50,15 @@ struct MyApp : App {
     nav().faceToward(Vec3f(0));
   }
 
+  bool onKeyDown(Keyboard const& k) override {
+    switch (k.key()) {
+      case ' ': {
+        bunny->addForce();
+      } break;
+    }
+  }
   void onAnimate(double dt) override {
-    double period = 10;
-    phase += dt / period;
-    if (phase >= 1.) phase -= 1.;
+    bunny->onAnimate(dt);
   }
 
   void onDraw(Graphics& g) override {
