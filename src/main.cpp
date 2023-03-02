@@ -68,6 +68,7 @@ struct MyApp : App {
         bunny->addVelocity(Vec3f(0, 0, -5.0f));
       } break;
     }
+    return true;
   }
   void onAnimate(double dt) override {
     bunny->onAnimate(dt);
