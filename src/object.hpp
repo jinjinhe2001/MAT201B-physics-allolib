@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include "al/io/al_ControlNav.hpp"
 #include "al/graphics/al_Mesh.hpp"
 #include "al/graphics/al_Light.hpp"
