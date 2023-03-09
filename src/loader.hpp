@@ -5,6 +5,7 @@
 #include <map>
 
 #include "al/math/al_Vec.hpp"
+#include "al/graphics/al_Mesh.hpp"
 #include "al/graphics/al_Texture.hpp"
 #include "al/graphics/al_Image.hpp"
 
