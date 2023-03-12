@@ -78,7 +78,7 @@ void createMeshOctree(OctreeNode *root, Mesh &mesh, float xmin, float xmax,
             }
         }
         root->data = num;
-        std::cout << num << std::endl;
+        //std::cout << num << std::endl;
         if (num == 0)
             return;
         float xm = (xmax - xmin) / 2;
@@ -105,6 +105,21 @@ void createMeshOctree(OctreeNode *root, Mesh &mesh, float xmin, float xmax,
     }
 }
 
+void octreeToMesh(OctreeNode *p, Mesh& mesh, int& maxDepth) {
+    if (p != nullptr)
+    {
+        if (maxDepth == p->depth) {
+            mesh.vertex(Vec3f((p->xmax + p->xmin) / 2, 
+                              (p->ymax + p->ymin) / 2,
+                              (p->zmax + p->zmin) / 2));
+        } else {
+            for (int i = 0; i < 8; i++) {
+                octreeToMesh(p->children[i], mesh, maxDepth);
+            }
+        }
+    }
+}
+
 void preOrder(OctreeNode *p)
 {
     if (p != nullptr)
@@ -127,6 +142,8 @@ int nodeNum(OctreeNode *root) {
         for (int i = 0; i < 8; i++) {
             num += nodeNum(root->children[i]);
         }
+    } else {
+        num = 0;
     }
     return num;
 }

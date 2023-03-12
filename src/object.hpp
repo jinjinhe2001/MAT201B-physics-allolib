@@ -24,6 +24,9 @@ public:
     Texture texture;
     Material material;
     ShaderProgram shader;
+
+    // multiObject may use the same source, reduce memory costing
+    
 public:
     Object(const std::string meshPath = "", const std::string shaderPath = "", 
         const std::string texPath = "") {
@@ -175,5 +178,31 @@ public:
         vao.bind();
         vao.enableAttrib(2);
         vao.attribPointer(2, bufferArray[2], 3, GL_FLOAT, 0, 0);
+    }
+    void reBindVertices() {
+        bufferArray[0].bind();
+        bufferArray[0].data(mesh.vertices().size() * sizeof(float) * 3, mesh.vertices().data());
+
+        vao.bind();
+        vao.enableAttrib(0);
+        vao.attribPointer(0, bufferArray[0], 3, GL_FLOAT, 0, 0);
+    }
+    void reBindAll() {
+        std::vector<int>bufferSize({3, 2, 3});
+        vao.bind();
+        for (int i = 0; i < bufferSize.size(); i++) {
+            bufferArray[i].bind();
+            if (i == 0)
+                bufferArray[i].data(mesh.vertices().size() * sizeof(float) * bufferSize[i], mesh.vertices().data());
+            else if (i == 1) {
+                bufferArray[i].data(mesh.texCoord2s().size() * sizeof(float) * bufferSize[i], mesh.texCoord2s().data());
+            } else {
+                bufferArray[i].data(mesh.normals().size() * sizeof(float) * bufferSize[i], mesh.normals().data());
+            }
+            vao.enableAttrib(i);
+            vao.attribPointer(i, bufferArray[i], bufferSize[i], GL_FLOAT, 0, 0);
+        }
+        elementBuffer.bind();
+        elementBuffer.data(mesh.indices().size() * sizeof(unsigned int), mesh.indices().data());
     }
 };
