@@ -25,6 +25,7 @@ public:
     Vec3f AABBmin;
     Vec3f AABBmax;
     Mesh AABB; // Actually, it's octree's mesh
+    Vec3f AABBAverageLength = 0;
     ShaderProgram AABBshader;
     BufferObject AABBbuffer;
     VAO AABBVao;
@@ -65,6 +66,7 @@ public:
     {
         AABBmin = Vec3f(9999, 9999, 9999);
         AABBmax = Vec3f(-9999, -9999, -9999);
+
         for (auto vert : mesh.vertices())
         {
             for (int i = 0; i < 3; i++)
@@ -74,6 +76,9 @@ public:
                 if (vert[i] > AABBmax[i])
                     AABBmax[i] = vert[i];
             }
+        }
+        for (int i = 0; i < 3; i++) {
+            AABBAverageLength[i] = (fabs(AABBmax[i]) + fabs(AABBmin[i])) / 2.0f;
         }
         createOctree();
         // addAABB(AABB, AABBmin, AABBmax);
@@ -210,7 +215,7 @@ public:
 
             v_ni *= -restitution;
             v_ti *= friction;
-            // std::cout<<friction<<std::endl;
+            //std::cout<< restitution<<","<<friction<<std::endl;
 
             Mat4f K = Mat4f::identity() * (1 / mass) - Rri_cross * I_refInverse * Rri_cross;
             j = K.inversed() * Vec4f(v_ni + v_ti - collideV, 1.0f);
@@ -319,7 +324,11 @@ public:
         w *= angular_decay;
         if (v.mag() < 0.5f)
         {
-            restitution *= 0.9;
+            if (restitution < 1e-6) {
+                restitution = 0;
+            } else {
+                restitution *= 0.9;
+            }
         }
         else
         {
@@ -353,12 +362,12 @@ public:
     float mass = 1.0f;
     float damping = 0.99f;
     float rho = 0.995f;
-    float spring_k = 8000;
+    float spring_k = 80000;
     std::vector<int> E;
     std::vector<float> L;
     std::vector<Vec3f> V;
     Vec3f g = Vec3f(0, -9.8f, 0);
-    int n = 21;
+    int n = 81;
 
     MassSpring(const std::string meshPath = "", const std::string shaderPath = "./shaders/default",
                const std::string texPath = "")
@@ -464,7 +473,6 @@ public:
     }
 
     void onAnimate(double dt) override {
-        dt = 0.016;
         Mat4f R;
         Mat4f S = ScaleMatrix(scale);
         nav.quat().toMatrix(R.elems());
@@ -554,6 +562,46 @@ public:
                     Vec3f newX = x + Rri + (-dis + Vec3f(0.01f)) * N;
                     V[i] += -dis * (1 / dt) * N;
                     vertices[i] = Vec3f(InversedR * Vec4f(newX - x, 1.0f));
+                }
+            }
+        }
+    }
+
+    void rigidBodyCollision(RigidObject &object, float dt) {
+        auto &vertices = mesh.vertices();
+        Mat4f R;
+        Mat4f S = ScaleMatrix(scale);
+        nav.quat().toMatrix(R.elems());
+        R = S * R;
+        Mat4f InversedR = R.inversed();
+        Vec3f x = nav.pos();
+        Vec3f collideL(0);
+        Vec3f collideV(0);
+        Vec3f objectCollideL(0);
+        Vec3f collideSurface;
+        float count = 0;
+
+        Vec3f objectX = object.nav.pos();
+        Mat4f objectR;
+        Mat4f objectS = ScaleMatrix(object.scale);
+        object.nav.quat().toMatrix(objectR.elems());
+        objectR = objectS * objectR;
+        auto inverseObjectR = objectR.inversed();
+
+        for (int i = 0; i < vertices.size(); i++)
+        {
+            if (i == 0 || i == n - 1) continue;
+            Vec3f Rri = R * Vec4f(vertices[i], 1.0f);
+            Vec3f transformedX = inverseObjectR * Vec4f(x + Rri - objectX, 1.0f);
+            if (inBox(transformedX, object.AABBmin, object.AABBmax))
+            {
+                {//if ((- x - Rri + objectX).dot(V[i]) > 0) {
+                    if (transformedX.mag() < object.AABBAverageLength.mag() * 1.0f) {
+                        transformedX = transformedX.normalize() * object.AABBAverageLength.mag() * 1.0f;
+                        Vec3f newX = objectR * Vec4f(transformedX, 1.0f) + objectX;
+                        V[i] += (newX - x - Rri) / dt;
+                        vertices[i] = Vec3f(InversedR * Vec4f(newX - x, 1.0f));
+                    }
                 }
             }
         }

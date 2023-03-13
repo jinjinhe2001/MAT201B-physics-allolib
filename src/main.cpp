@@ -13,35 +13,57 @@
 #include "skybox.hpp"
 #include "al/app/al_DistributedApp.hpp"
 #include "al/io/al_Imgui.hpp"
-
+#include "al/math/al_Ray.hpp"
 
 using namespace al;
 
-struct MyApp : DistributedApp {
+struct MyApp : DistributedApp
+{
   std::vector<std::shared_ptr<RigidObject>> bunnys;
   std::unique_ptr<V1Object> plane;
   std::unique_ptr<Skybox> skybox;
-  std::unique_ptr<MassSpring> cloth;
+  std::unique_ptr<MassSpring> cloth1;
+  std::unique_ptr<MassSpring> cloth2;
+  int nearOne = -1;
+  float nearT = 9999;
+  int axis = -1;
 
   bool showOctree = true;
+  float viewDistance = 30.0f;
+  float theta1 = 0.75 * M_2PI;
+  float theta2 = 0.125 * M_2PI;
+  Vec3f dragDir;
+  float dragFactor = 0.05f;
 
-  void createCloth() {
-    cloth = std::make_unique<MassSpring>("", 
+  void createCloth()
+  {
+    cloth1 = std::make_unique<MassSpring>("",
                                          "./shaders/cloth",
                                          "./assets/cloth/cloth.jpeg");
-    cloth->onCreate();
-    cloth->scale = Vec3f(1);
-    cloth->reCalculateL();
-    cloth->nav.pos(0, 8, 0);
-    cloth->material.shininess(128);
-    cloth->singleLight.pos(5, 10, -5);
+    cloth1->onCreate();
+    cloth1->scale = Vec3f(0.9f);
+    cloth1->reCalculateL();
+    cloth1->nav.pos(0, 8, 0);
+    cloth1->material.shininess(128);
+    cloth1->singleLight.pos(5, 10, -5);
+
+    cloth2 = std::make_unique<MassSpring>("",
+                                          "./shaders/cloth",
+                                          "./assets/cloth/cloth.jpeg");
+    cloth2->onCreate();
+    cloth2->scale = Vec3f(0.9f);
+    cloth2->reCalculateL();
+    cloth2->nav.pos(0, 8, -8);
+    cloth2->material.shininess(128);
+    cloth2->singleLight.pos(5, 10, -5);
   }
 
-  void createBunny() {
+  void createBunny()
+  {
     std::shared_ptr<RigidObject> bunny = std::make_shared<RigidObject>(
-                      "./assets/bunny/bunny.obj", 
-                      "./shaders/default", 
-                      "./assets/bunny/bunny-atlas.jpg");
+        "./assets/bunny/bunny.obj",
+        "./shaders/default",
+        "./assets/bunny/bunny-atlas.jpg");
 
     bunny->onCreate();
     bunny->generateNormals();
@@ -55,9 +77,10 @@ struct MyApp : DistributedApp {
     bunnys.push_back(bunny);
   }
 
-  void createPlane() {
-    plane = std::make_unique<V1Object>("./assets/plane/plane.obj", 
-                                       "./shaders/default", 
+  void createPlane()
+  {
+    plane = std::make_unique<V1Object>("./assets/plane/plane.obj",
+                                       "./shaders/default",
                                        "./assets/plane/uvmap.jpeg");
     plane->onCreate();
     plane->scale = Vec3f(1);
@@ -67,9 +90,9 @@ struct MyApp : DistributedApp {
     plane->singleLight.pos(5, 10, -5);
   }
 
-  void createSkybox() {
-    std::vector<std::string> faces
-    {
+  void createSkybox()
+  {
+    std::vector<std::string> faces{
         "./assets/skybox/right.jpg",
         "./assets/skybox/left.jpg",
         "./assets/skybox/top.jpg",
@@ -80,52 +103,66 @@ struct MyApp : DistributedApp {
     skybox = std::make_unique<Skybox>(faces);
   }
 
-  void onCreate() override {
+  void onCreate() override
+  {
     createBunny();
     createCloth();
     createPlane();
     createSkybox();
-    nav().pos(0, 20, 30);
-    nav().quat().fromAxisAngle(0. * M_2PI, 0, 1, 0);
+    nav().pos(viewDistance * sinf(theta1), 
+              viewDistance * sinf(theta2), 
+              viewDistance * cosf(theta1));
     nav().faceToward(Vec3f(0));
+    Vec3d euler;
+    nav().quat().toEuler(euler);
+    euler.z = 0;
+    nav().quat().fromEuler(euler);
+    navControl().disable();
   }
 
   bool onKeyDown(Keyboard const& k) override {
-    switch (k.key()) {
-      case ' ': {
-        bunnys[0]->addVelocity();
-      } break;
-      case '1': {
-        bunnys[0]->addVelocity(Vec3f(5.0f, 0, 0));
-      } break;
-      case '2': {
-        bunnys[0]->addVelocity(Vec3f(-5.0f, 0, 0));
-      } break;
-      case '3': {
-        bunnys[0]->addVelocity(Vec3f(0, 0, 5.0f));
-      } break;
-      case '4': {
-        bunnys[0]->addVelocity(Vec3f(0, 0, -5.0f));
-      } break;
+    if (nearOne >= 0) {
+      switch (k.key()) {
+        case ' ': {
+          bunnys[nearOne]->addVelocity(Vec3f(0, 100.0f * dragFactor, 0));
+        } break;
+      }
     }
     return true;
   }
-  void onAnimate(double dt) override {
-    if (dt < 1e-6) return;
-    for (int i = 0; i < bunnys.size(); i++) {
-      for (int j = 0; j < bunnys.size(); j++) {
-        if (i == j) continue;
+  void onAnimate(double dt) override
+  {
+    dt = 0.016f;
+    if (dt < 1e-6)
+      return;
+    for (int i = 0; i < bunnys.size(); i++)
+    {
+      for (int j = 0; j < bunnys.size(); j++)
+      {
+        if (i == j)
+          continue;
         bunnys[i]->rigidBodyCollision(*bunnys[j]);
       }
     }
 
-    for (int i = 0; i < bunnys.size(); i++) {
+    for (int i = 0; i < bunnys.size(); i++)
+    {
       bunnys[i]->onAnimate(dt);
     }
-    cloth->onAnimate(dt);
+    cloth1->onAnimate(dt);
+    for (int i = 0; i < bunnys.size(); i++)
+    {
+      cloth1->rigidBodyCollision(*bunnys[i], dt);
+    }
+    cloth2->onAnimate(dt);
+    for (int i = 0; i < bunnys.size(); i++)
+    {
+      cloth2->rigidBodyCollision(*bunnys[i], dt);
+    }
   }
 
-  void onDraw(Graphics& g) override {
+  void onDraw(Graphics &g) override
+  {
 
     g.depthTesting(true);
     g.clear(0.2);
@@ -136,12 +173,14 @@ struct MyApp : DistributedApp {
     skybox->onDraw(g, nav());
     g.popMatrix();
 
-    for (int i = 0; i < bunnys.size(); i++) {
+    for (int i = 0; i < bunnys.size(); i++)
+    {
       g.pushMatrix();
       g.pushCamera(view());
       bunnys[i]->onDraw(g, nav());
       g.popMatrix();
-      if (showOctree) {
+      if (showOctree || i == nearOne)
+      {
         g.pushMatrix();
         g.pushCamera(view());
         bunnys[i]->drawAABB(g, nav());
@@ -151,7 +190,12 @@ struct MyApp : DistributedApp {
 
     g.pushMatrix();
     g.pushCamera(view());
-    cloth->onDraw(g, nav());
+    cloth1->onDraw(g, nav());
+    g.popMatrix();
+    
+    g.pushMatrix();
+    g.pushCamera(view());
+    cloth2->onDraw(g, nav());
     g.popMatrix();
 
     g.pushMatrix();
@@ -162,7 +206,8 @@ struct MyApp : DistributedApp {
     drawImGUI(g);
   }
 
-  void drawImGUI(Graphics& g) {
+  void drawImGUI(Graphics &g)
+  {
     imguiBeginFrame();
 
     ImGui::Begin("GUI");
@@ -170,8 +215,27 @@ struct MyApp : DistributedApp {
     ImGui::Checkbox("Show Octree", &_showOctree);
     showOctree = _showOctree;
 
-    
-    if (ImGui::Button("Add Bunny")) {
+    static float _dis = 30.0f;
+    ImGui::SliderFloat("View Distance", &_dis, 1.0f, 60.0f, "ratio = %.3f");
+    {
+      nav().pos(viewDistance * sinf(theta1), 
+                viewDistance * sinf(theta2), 
+                viewDistance * cosf(theta1));
+      nav().faceToward(Vec3f(0));
+      
+      Vec3d euler;
+      nav().quat().toEuler(euler);
+      euler.z = 0;
+      nav().quat().fromEuler(euler);
+    }
+    viewDistance = _dis;
+
+    static float _drag = 0.05f;
+    ImGui::SliderFloat("Drag Factor", &_drag, 0.01f, 0.2f, "ratio = %.3f");
+    dragFactor = _drag;
+
+    if (ImGui::Button("Add Bunny"))
+    {
       createBunny();
     }
     ImGui::End();
@@ -179,13 +243,101 @@ struct MyApp : DistributedApp {
     imguiDraw();
   }
 
-  void onInit() override {
+  void onInit() override
+  {
     imguiInit();
   }
   void onExit() override { imguiShutdown(); }
+
+  Vec3d unproject(Vec3d screenPos)
+  {
+    auto &g = graphics();
+    auto mvp = g.projMatrix() * g.viewMatrix() * g.modelMatrix();
+    Matrix4d invprojview = Matrix4d::inverse(mvp);
+    Vec4d worldPos4 = invprojview.transform(screenPos);
+    return worldPos4.sub<3>(0) / worldPos4.w;
+  }
+
+  Rayd getPickRay(int screenX, int screenY)
+  {
+    Rayd r;
+    Vec3d screenPos;
+    screenPos.x = (screenX * 1. / width()) * 2. - 1.;
+    screenPos.y = ((height() - screenY) * 1. / height()) * 2. - 1.;
+    screenPos.z = -1.;
+    Vec3d worldPos = unproject(screenPos);
+    r.origin().set(worldPos);
+
+    screenPos.z = 1.;
+    worldPos = unproject(screenPos);
+    r.direction().set(worldPos);
+    r.direction() -= r.origin();
+    r.direction().normalize();
+    return r;
+  }
+
+  bool onMouseDown(const Mouse &m) override
+  {
+    Rayd r = getPickRay(m.x(), m.y());
+    nearOne = -1;
+    nearT = 9999;
+    for (int i = 0; i < bunnys.size(); i++)
+    {
+      Mat4f R;
+      Mat4f S = ScaleMatrix(bunnys[i]->scale);
+      bunnys[i]->nav.quat().toMatrix(R.elems());
+      R = S * R;
+      auto inversedR = R.inversed();
+      Vec3f x = bunnys[i]->nav.pos();
+
+      float radius = Vec3f(R * Vec4f(bunnys[i]->AABBAverageLength, 1.0f)).mag();
+      float t = r.intersectSphere(x, radius * 0.8f);
+      //std::cout << "center" << x << "scl" << radius * 0.8f << "t" << t << std::endl;
+      if (t > 0 && t < nearT)
+      {
+        nearT = t;
+        nearOne = i;
+        dragDir = r.direction().cross(Vec3f(0, 1, 0)).normalize();
+      }
+    }
+    return true;
+  }
+
+  bool onMouseUp(const Mouse &m) override
+  {
+    nearOne = -1;
+    nearT = 9999;
+    return true;
+  }
+
+  bool onMouseDrag(const Mouse &m) override
+  {
+    if (nearOne == -1) {
+      theta1 -= m.dx() * 0.001f;
+      theta2 += m.dy() * 0.001f;
+      nav().pos(viewDistance * sinf(theta1), 
+                viewDistance * sinf(theta2), 
+                viewDistance * cosf(theta1));
+      nav().faceToward(Vec3f(0));
+      
+      Vec3d euler;
+      nav().quat().toEuler(euler);
+      euler.z = 0;
+      nav().quat().fromEuler(euler);
+    } else {
+      float dx = m.dx() * dragFactor;
+      float dy = -m.dy() * dragFactor;
+      Vec3f axisDir = dragDir.cross(Vec3f(0, 1, 0)).normalize();
+      auto result = dragDir * dx - axisDir * dy;
+      bunnys[nearOne]->addVelocity(result);
+    }
+
+    return true;
+  }
 };
 
-int main() {
+int main()
+{
   MyApp app;
   app.dimensions(1080, 720);
   app.start();
