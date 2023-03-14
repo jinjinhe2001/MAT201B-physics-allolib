@@ -174,37 +174,31 @@ struct MyApp : DistributedApp
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     g.pushMatrix();
-    g.pushCamera(view());
     skybox->onDraw(g, nav());
     g.popMatrix();
 
     for (int i = 0; i < bunnys.size(); i++)
     {
       g.pushMatrix();
-      g.pushCamera(view());
       bunnys[i]->onDraw(g, nav());
       g.popMatrix();
       if (showOctree || i == nearOne)
       {
         g.pushMatrix();
-        g.pushCamera(view());
         bunnys[i]->drawAABB(g, nav());
         g.popMatrix();
       }
     }
 
     g.pushMatrix();
-    g.pushCamera(view());
     cloth1->onDraw(g, nav());
     g.popMatrix();
 
     g.pushMatrix();
-    g.pushCamera(view());
     cloth2->onDraw(g, nav());
     g.popMatrix();
 
     g.pushMatrix();
-    g.pushCamera(view());
     plane->onDraw(g, nav());
     g.popMatrix();
 
