@@ -38,8 +38,8 @@ struct MyApp : DistributedApp
   void createCloth()
   {
     cloth1 = std::make_unique<MassSpring>("",
-                                         "./shaders/cloth",
-                                         "./assets/cloth/cloth.jpeg");
+                                          "./shaders/cloth",
+                                          "./assets/cloth/cloth.jpeg");
     cloth1->onCreate();
     cloth1->scale = Vec3f(0.9f);
     cloth1->reCalculateL();
@@ -109,8 +109,8 @@ struct MyApp : DistributedApp
     createCloth();
     createPlane();
     createSkybox();
-    nav().pos(viewDistance * sinf(theta1), 
-              viewDistance * sinf(theta2), 
+    nav().pos(viewDistance * sinf(theta1),
+              viewDistance * sinf(theta2),
               viewDistance * cosf(theta1));
     nav().faceToward(Vec3f(0));
     Vec3d euler;
@@ -120,12 +120,17 @@ struct MyApp : DistributedApp
     navControl().disable();
   }
 
-  bool onKeyDown(Keyboard const& k) override {
-    if (nearOne >= 0) {
-      switch (k.key()) {
-        case ' ': {
-          bunnys[nearOne]->addVelocity(Vec3f(0, 100.0f * dragFactor, 0));
-        } break;
+  bool onKeyDown(Keyboard const &k) override
+  {
+    if (nearOne >= 0)
+    {
+      switch (k.key())
+      {
+      case ' ':
+      {
+        bunnys[nearOne]->addVelocity(Vec3f(0, 100.0f * dragFactor, 0));
+      }
+      break;
       }
     }
     return true;
@@ -192,7 +197,7 @@ struct MyApp : DistributedApp
     g.pushCamera(view());
     cloth1->onDraw(g, nav());
     g.popMatrix();
-    
+
     g.pushMatrix();
     g.pushCamera(view());
     cloth2->onDraw(g, nav());
@@ -218,11 +223,11 @@ struct MyApp : DistributedApp
     static float _dis = 30.0f;
     ImGui::SliderFloat("View Distance", &_dis, 1.0f, 60.0f, "ratio = %.3f");
     {
-      nav().pos(viewDistance * sinf(theta1), 
-                viewDistance * sinf(theta2), 
+      nav().pos(viewDistance * sinf(theta1),
+                viewDistance * sinf(theta2),
                 viewDistance * cosf(theta1));
       nav().faceToward(Vec3f(0));
-      
+
       Vec3d euler;
       nav().quat().toEuler(euler);
       euler.z = 0;
@@ -292,7 +297,7 @@ struct MyApp : DistributedApp
 
       float radius = Vec3f(R * Vec4f(bunnys[i]->AABBAverageLength, 1.0f)).mag();
       float t = r.intersectSphere(x, radius * 0.8f);
-      //std::cout << "center" << x << "scl" << radius * 0.8f << "t" << t << std::endl;
+      // std::cout << "center" << x << "scl" << radius * 0.8f << "t" << t << std::endl;
       if (t > 0 && t < nearT)
       {
         nearT = t;
@@ -312,19 +317,22 @@ struct MyApp : DistributedApp
 
   bool onMouseDrag(const Mouse &m) override
   {
-    if (nearOne == -1) {
+    if (nearOne == -1)
+    {
       theta1 -= m.dx() * 0.001f;
       theta2 += m.dy() * 0.001f;
-      nav().pos(viewDistance * sinf(theta1), 
-                viewDistance * sinf(theta2), 
+      nav().pos(viewDistance * sinf(theta1),
+                viewDistance * sinf(theta2),
                 viewDistance * cosf(theta1));
       nav().faceToward(Vec3f(0));
-      
+
       Vec3d euler;
       nav().quat().toEuler(euler);
       euler.z = 0;
       nav().quat().fromEuler(euler);
-    } else {
+    }
+    else
+    {
       float dx = m.dx() * dragFactor;
       float dy = -m.dy() * dragFactor;
       Vec3f axisDir = dragDir.cross(Vec3f(0, 1, 0)).normalize();
