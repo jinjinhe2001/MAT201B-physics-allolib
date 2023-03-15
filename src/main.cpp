@@ -39,7 +39,7 @@ struct MyApp : DistributedApp
   std::vector<ParameterPose> poses;
   std::vector<ParameterVec3> cloth1Pos;
   std::vector<ParameterVec3> cloth2Pos;
-  ParameterBool showOctree{"showOctree", "", false};
+  ParameterBool showOctree{"showOctree", "", true};
   /*ParameterDouble viewDistance{"viewDistance", "", 30.0};
   ParameterDouble theta1{"theta1", "", 0.75 * M_2PI};
   ParameterDouble theta2{"theta2", "", 0.125 * M_2PI};
@@ -88,6 +88,7 @@ struct MyApp : DistributedApp
 
   void createBunny()
   {
+  if (bunnys.size() >= 20) return;
     std::shared_ptr<RigidObject> bunny = std::make_shared<RigidObject>(
         "./assets/bunny/bunny.obj",
         "./shaders/default",
@@ -107,8 +108,8 @@ struct MyApp : DistributedApp
     {
       bunnyNum = bunnys.size();
     }
-    poses.push_back(ParameterPose("bunnys_" + std::to_string(bunnys.size() - 1)));
-    parameterServer() << poses[bunnys.size() - 1];
+    //poses.push_back(ParameterPose("bunnys_" + std::to_string(bunnys.size() - 1)));
+    //parameterServer() << poses[bunnys.size() - 1];
   }
 
   void createPlane()
@@ -153,6 +154,12 @@ struct MyApp : DistributedApp
     nav().quat().fromEuler(euler);
     navControl().disable();
     parameterServer() << showOctree << para4 << bunnyNum;
+    for (int i = 0; i < 20; i++) {
+      poses.push_back(ParameterPose("bunnys_" + std::to_string(i)));
+    }
+    for (int i = 0; i < 20; i++) {
+      parameterServer() << poses[i];
+    }
   }
 
   bool onKeyDown(Keyboard const &k) override
@@ -187,10 +194,30 @@ struct MyApp : DistributedApp
       {
         bunnys[i]->nav.set(poses[i].get());
       }
+      cloth1->onAnimate(dt);
+      for (int i = 0; i < bunnys.size(); i++)
+      {
+        cloth1->rigidBodyCollision(*bunnys[i], dt);
+      }
+      cloth2->onAnimate(dt);
+      for (int i = 0; i < bunnys.size(); i++)
+      {
+        cloth2->rigidBodyCollision(*bunnys[i], dt);
+      }
+
       while (bunnyNum > bunnys.size())
       {
         createBunny();
       }
+      nav().pos(viewDistance * sinf(theta1),
+                viewDistance * sinf(theta2),
+                viewDistance * cosf(theta1));
+      nav().faceToward(Vec3f(0));
+
+      Vec3d euler;
+      nav().quat().toEuler(euler);
+      euler.z = 0;
+      nav().quat().fromEuler(euler);
       /*auto X = cloth1->mesh.vertices();
       for (int i = 0; i < cloth1->mesh.vertices().size(); i++)
       {
@@ -263,7 +290,7 @@ struct MyApp : DistributedApp
       g.pushMatrix();
       bunnys[i]->onDraw(g, nav());
       g.popMatrix();
-      if (showOctree || i == nearOne)
+      if (showOctree.get() || i == nearOne)
       {
         g.pushMatrix();
         bunnys[i]->drawAABB(g, nav());
@@ -288,6 +315,7 @@ struct MyApp : DistributedApp
 
   void drawImGUI(Graphics &g)
   {
+    if (!isPrimary()) return;
     imguiBeginFrame();
 
     ImGui::Begin("GUI");
