@@ -72,7 +72,7 @@ public:
     }
 
     ~Object() {
-        shader.destroy();
+        //shader.destroy();
     }
     virtual void onCreate() = 0;
     virtual void onAnimate(double dt) = 0;

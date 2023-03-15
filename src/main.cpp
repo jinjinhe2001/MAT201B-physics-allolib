@@ -22,22 +22,34 @@ struct MyApp : DistributedApp
   std::vector<std::shared_ptr<RigidObject>> bunnys;
   std::unique_ptr<V1Object> plane;
   std::unique_ptr<Skybox> skybox;
-  std::unique_ptr<MassSpring> cloth1;
-  std::unique_ptr<MassSpring> cloth2;
+  std::shared_ptr<MassSpring> cloth1;
+  std::shared_ptr<MassSpring> cloth2;
   int nearOne = -1;
   float nearT = 9999;
   int axis = -1;
 
-  bool showOctree = true;
+  // bool showOctree = true;
   float viewDistance = 30.0f;
   float theta1 = 0.75 * M_2PI;
   float theta2 = 0.125 * M_2PI;
   Vec3f dragDir;
   float dragFactor = 0.05f;
 
+  // for networking
+  std::vector<ParameterPose> poses;
+  std::vector<ParameterVec3> cloth1Pos;
+  std::vector<ParameterVec3> cloth2Pos;
+  ParameterBool showOctree{"showOctree", "", false};
+  /*ParameterDouble viewDistance{"viewDistance", "", 30.0};
+  ParameterDouble theta1{"theta1", "", 0.75 * M_2PI};
+  ParameterDouble theta2{"theta2", "", 0.125 * M_2PI};
+  ParameterDouble dragFactor{"dragFactor", "", 0.05f};*/
+  ParameterVec4 para4{"para4", "", Vec4f(30.0, 0.75 * M_2PI, 0.125 * M_2PI, 0.05f)};
+  ParameterInt bunnyNum{"bunnyNum", "", 0};
+
   void createCloth()
   {
-    cloth1 = std::make_unique<MassSpring>("",
+    cloth1 = std::make_shared<MassSpring>("",
                                           "./shaders/cloth",
                                           "./assets/cloth/cloth.jpeg");
     cloth1->onCreate();
@@ -46,8 +58,15 @@ struct MyApp : DistributedApp
     cloth1->nav.pos(0, 8, 0);
     cloth1->material.shininess(128);
     cloth1->singleLight.pos(5, 10, -5);
-
-    cloth2 = std::make_unique<MassSpring>("",
+    /*for (int i = 0; i < cloth1->mesh.vertices().size(); i++)
+    {
+      cloth1Pos.push_back(ParameterVec3("cloth1_" + std::to_string(i)));
+    }
+    for (int i = 0; i < cloth1->mesh.vertices().size(); i++)
+    {
+      parameterServer() << cloth1Pos[i];
+    }*/
+    cloth2 = std::make_shared<MassSpring>("",
                                           "./shaders/cloth",
                                           "./assets/cloth/cloth.jpeg");
     cloth2->onCreate();
@@ -56,6 +75,15 @@ struct MyApp : DistributedApp
     cloth2->nav.pos(0, 8, -8);
     cloth2->material.shininess(128);
     cloth2->singleLight.pos(5, 10, -5);
+
+    /*for (int i = 0; i < cloth2->mesh.vertices().size(); i++)
+    {
+      cloth2Pos.push_back(ParameterVec3("cloth2_" + std::to_string(i)));
+    }
+    for (int i = 0; i < cloth2->mesh.vertices().size(); i++)
+    {
+      parameterServer() << cloth2Pos[i];
+    }*/
   }
 
   void createBunny()
@@ -75,6 +103,12 @@ struct MyApp : DistributedApp
     bunny->createAABBAndOctree();
     bunny->initIRef();
     bunnys.push_back(bunny);
+    if (isPrimary())
+    {
+      bunnyNum = bunnys.size();
+    }
+    poses.push_back(ParameterPose("bunnys_" + std::to_string(bunnys.size() - 1)));
+    parameterServer() << poses[bunnys.size() - 1];
   }
 
   void createPlane()
@@ -118,10 +152,12 @@ struct MyApp : DistributedApp
     euler.z = 0;
     nav().quat().fromEuler(euler);
     navControl().disable();
+    parameterServer() << showOctree << para4 << bunnyNum;
   }
 
   bool onKeyDown(Keyboard const &k) override
   {
+    if (!isPrimary()) return true;
     if (nearOne >= 0)
     {
       switch (k.key())
@@ -140,6 +176,37 @@ struct MyApp : DistributedApp
     dt = 0.016f;
     if (dt < 1e-6)
       return;
+    if (!isPrimary())
+    {
+      auto _para4 = para4.get();
+      viewDistance = _para4.x;
+      theta1 = _para4.y;
+      theta2 = _para4.z;
+      dragFactor = _para4.w;
+      for (int i = 0; i < bunnys.size(); i++)
+      {
+        bunnys[i]->nav.set(poses[i].get());
+      }
+      while (bunnyNum > bunnys.size())
+      {
+        createBunny();
+      }
+      /*auto X = cloth1->mesh.vertices();
+      for (int i = 0; i < cloth1->mesh.vertices().size(); i++)
+      {
+        X[i] = Vec3f(0);
+      }
+      cloth1->mesh.vertices() = X;
+      cloth1->reBindVertices();
+      auto Y = cloth2->mesh.vertices();
+      for (int i = 0; i < cloth2->mesh.vertices().size(); i++)
+      {
+        Y[i] = cloth2Pos[i].get();
+      }
+      cloth2->mesh.vertices() = Y;
+      cloth2->reBindVertices();*/
+      return;
+    }
     for (int i = 0; i < bunnys.size(); i++)
     {
       for (int j = 0; j < bunnys.size(); j++)
@@ -164,11 +231,25 @@ struct MyApp : DistributedApp
     {
       cloth2->rigidBodyCollision(*bunnys[i], dt);
     }
+
+    for (int i = 0; i < bunnys.size(); i++)
+    {
+      poses[i] = bunnys[i]->nav.pos();
+    }
+    
+    para4 = Vec4f(viewDistance, theta1, theta2, dragFactor);
+    /*for (int i = 0; i < cloth1->mesh.vertices().size(); i++)
+    {
+      cloth1Pos[i] = cloth1->mesh.vertices()[i];
+    }
+    for (int i = 0; i < cloth2->mesh.vertices().size(); i++)
+    {
+      cloth2Pos[i] = cloth2->mesh.vertices()[i];
+    }*/
   }
 
   void onDraw(Graphics &g) override
   {
-
     g.depthTesting(true);
     g.clear(0.2);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -236,6 +317,9 @@ struct MyApp : DistributedApp
     if (ImGui::Button("Add Bunny"))
     {
       createBunny();
+      if (isPrimary())
+      {
+      }
     }
     ImGui::End();
     imguiEndFrame();
@@ -277,6 +361,7 @@ struct MyApp : DistributedApp
 
   bool onMouseDown(const Mouse &m) override
   {
+    if (!isPrimary()) return true;
     Rayd r = getPickRay(m.x(), m.y());
     nearOne = -1;
     nearT = 9999;
@@ -304,6 +389,7 @@ struct MyApp : DistributedApp
 
   bool onMouseUp(const Mouse &m) override
   {
+    if (!isPrimary()) return true;
     nearOne = -1;
     nearT = 9999;
     return true;
@@ -311,10 +397,11 @@ struct MyApp : DistributedApp
 
   bool onMouseDrag(const Mouse &m) override
   {
+    if (!isPrimary()) return true;
     if (nearOne == -1)
     {
-      theta1 -= m.dx() * 0.001f;
-      theta2 += m.dy() * 0.001f;
+      theta1 = theta1 - m.dx() * 0.001f;
+      theta2 = theta2 + m.dy() * 0.001f;
       nav().pos(viewDistance * sinf(theta1),
                 viewDistance * sinf(theta2),
                 viewDistance * cosf(theta1));
