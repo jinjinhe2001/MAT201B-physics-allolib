@@ -310,7 +310,9 @@ struct MyApp : DistributedApp
     plane->onDraw(g, nav());
     g.popMatrix();
 
-    drawImGUI(g);
+    if (isPrimary()) {
+      drawImGUI(g);
+    }
   }
 
   void drawImGUI(Graphics &g)
@@ -356,9 +358,14 @@ struct MyApp : DistributedApp
 
   void onInit() override
   {
-    imguiInit();
+    if (isPrimary()) {
+      imguiInit();
+    }
   }
-  void onExit() override { imguiShutdown(); }
+  void onExit() override { 
+    if (isPrimary())
+      imguiShutdown(); 
+  }
 
   Vec3d unproject(Vec3d screenPos)
   {
