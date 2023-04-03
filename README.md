@@ -13,4 +13,7 @@ git clone --recurse-submodules https://github.com/jinjinhe2001/MAT201B-physics-a
 ```
 ## Result
 
+https://user-images.githubusercontent.com/72654824/229410006-9491a1cb-9ab0-4b46-a83a-ac25c65b9b07.mp4
 
+- alloshpere adapt 
+![alloshpere adapt](https://jinjinhe2001.github.io/images/MAT/alloshpere.png)
